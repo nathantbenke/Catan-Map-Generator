@@ -18,8 +18,8 @@ export function seedFromString(s: string): number {
   return h >>> 0;
 }
 
-export function makeSeed(): string {
-  return Math.floor(Math.random() * 0xffffffff).toString(36);
+export function makeSeed(): number {
+  return Math.floor(Math.random() * 0x100000000) >>> 0;
 }
 
 export function shuffle<T>(arr: T[], rng: () => number): T[] {

@@ -43,7 +43,8 @@ export interface MapState {
   hexes: Hex[];
   ports: Port[];
   variants: Variants;
-  seed: string;
+  /** u32 seed fed directly to mulberry32. Display as base36 for humans. */
+  seed: number;
 }
 
 export interface Intersection {

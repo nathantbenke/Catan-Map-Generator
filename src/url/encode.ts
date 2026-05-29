@@ -1,4 +1,5 @@
 import { generateMap } from '../generator/generate';
+import { seedFromString } from '../generator/random';
 import type {
   ChallengeFlavor,
   MapState,
@@ -7,15 +8,143 @@ import type {
   Variants,
 } from '../game/types';
 
-// Wire format v2 (current): seed + player count + non-default variant flags
-// ONLY. The full hex/port data is dropped, and the recipient regenerates the
-// same map by calling generateMap with the same seed + variants. Generation
-// is deterministic (mulberry32 RNG keyed on the seed), so the result is
-// guaranteed identical. Typical URL shrinks from ~1400 chars to ~50.
+// Wire format v3 (current): a 52-bit bit-packed payload — version nibble +
+// u32 seed + every variant flag/enum at its minimum bit width. Encoded as
+// 7 bytes → 10 chars of base64url. Typical URL hash shrinks to `#m=` + 10.
 //
-// Wire format v1 (legacy): full hex/port data. Kept for backward compat so
-// links shared before the format change still load. Decoded in-place without
-// re-running the generator.
+// Wire format v2 (legacy): JSON {v:2, s, p, z:{...non-default flags}} →
+// base64url. ~30-50 chars. Decoder still supports it.
+//
+// Wire format v1 (legacy): full hex/port JSON. Kept for backward compat.
+
+// ---------------------------------------------------------------------------
+// v3 packed format
+// ---------------------------------------------------------------------------
+
+const V3_VERSION = 3;
+const V3_BYTE_LEN = 7;
+
+const DESERT_REPLACEMENTS: ProducingResource[] = ['wood', 'brick', 'wheat', 'sheep', 'ore'];
+const CHALLENGE_FLAVORS: ChallengeFlavor[] = ['none', 'scarcity', 'boomOrBust', 'drought', 'random'];
+const CHALLENGE_TARGETS: Array<ProducingResource | 'any'> = ['any', 'wood', 'brick', 'wheat', 'sheep', 'ore'];
+
+class BitWriter {
+  private bytes: Uint8Array;
+  private bitPos = 0;
+  constructor(byteLen: number) {
+    this.bytes = new Uint8Array(byteLen);
+  }
+  write(value: number, bits: number): void {
+    // MSB-first within each byte. value must fit in `bits`.
+    for (let i = bits - 1; i >= 0; i--) {
+      const bit = (value >>> i) & 1;
+      const byteIdx = this.bitPos >>> 3;
+      const bitIdx = 7 - (this.bitPos & 7);
+      this.bytes[byteIdx] |= bit << bitIdx;
+      this.bitPos++;
+    }
+  }
+  toBytes(): Uint8Array {
+    return this.bytes;
+  }
+}
+
+class BitReader {
+  private bitPos = 0;
+  constructor(private bytes: Uint8Array) {}
+  read(bits: number): number {
+    let out = 0;
+    for (let i = 0; i < bits; i++) {
+      const byteIdx = this.bitPos >>> 3;
+      const bitIdx = 7 - (this.bitPos & 7);
+      const bit = (this.bytes[byteIdx] >>> bitIdx) & 1;
+      out = (out << 1) | bit;
+      this.bitPos++;
+    }
+    return out >>> 0;
+  }
+}
+
+function indexOrThrow<T>(arr: readonly T[], v: T, label: string): number {
+  const i = arr.indexOf(v);
+  if (i < 0) throw new Error(`Unknown ${label}: ${String(v)}`);
+  return i;
+}
+
+function packV3(map: MapState): Uint8Array {
+  const w = new BitWriter(V3_BYTE_LEN);
+  w.write(V3_VERSION, 4);
+  // Seed is a u32; split into two 16-bit writes to stay within JS bitwise
+  // ops (which treat operands as i32 and would sign-extend bit 31).
+  w.write((map.seed >>> 16) & 0xffff, 16);
+  w.write(map.seed & 0xffff, 16);
+  w.write(map.playerCount - 3, 2);
+  w.write(map.variants.includeDesert ? 1 : 0, 1);
+  w.write(indexOrThrow(DESERT_REPLACEMENTS, map.variants.desertReplacement, 'desertReplacement'), 3);
+  w.write(map.variants.shufflePorts ? 1 : 0, 1);
+  w.write(map.variants.noSameNumberAdjacent ? 1 : 0, 1);
+  w.write(map.variants.noSameNumberOnResource ? 1 : 0, 1);
+  w.write(map.variants.noMultipleRedsOnResource ? 1 : 0, 1);
+  w.write(indexOrThrow(CHALLENGE_FLAVORS, map.variants.challenge.flavor, 'challenge.flavor'), 3);
+  w.write(indexOrThrow(CHALLENGE_TARGETS, map.variants.challenge.targetResource, 'challenge.targetResource'), 3);
+  // 4 bits trailing padding inside byte 7.
+  return w.toBytes();
+}
+
+function unpackV3(bytes: Uint8Array): MapState {
+  if (bytes.length < V3_BYTE_LEN) throw new Error('v3 payload too short');
+  const r = new BitReader(bytes);
+  const version = r.read(4);
+  if (version !== V3_VERSION) throw new Error(`Unexpected v3 version nibble: ${version}`);
+  const seedHi = r.read(16);
+  const seedLo = r.read(16);
+  // (hi << 16) | lo would sign-extend when hi's top bit is set, since JS
+  // bitwise ops operate on i32. Use * 0x10000 + lo and force u32 with >>> 0.
+  const seed = (seedHi * 0x10000 + seedLo) >>> 0;
+  const playerCount = (r.read(2) + 3) as PlayerCount;
+  const includeDesert = r.read(1) === 1;
+  const desertReplacement = DESERT_REPLACEMENTS[r.read(3)];
+  const shufflePorts = r.read(1) === 1;
+  const noSameNumberAdjacent = r.read(1) === 1;
+  const noSameNumberOnResource = r.read(1) === 1;
+  const noMultipleRedsOnResource = r.read(1) === 1;
+  const flavor = CHALLENGE_FLAVORS[r.read(3)];
+  const targetResource = CHALLENGE_TARGETS[r.read(3)];
+  if (!desertReplacement || !flavor || !targetResource) throw new Error('v3 enum out of range');
+  const variants: Variants = {
+    includeDesert,
+    desertReplacement,
+    shufflePorts,
+    noSameNumberAdjacent,
+    noSameNumberOnResource,
+    noMultipleRedsOnResource,
+    challenge: { flavor, targetResource },
+  };
+  const result = generateMap({ seed, playerCount, variants });
+  return result.map;
+}
+
+// ---------------------------------------------------------------------------
+// base64url
+// ---------------------------------------------------------------------------
+
+function toBase64Url(bytes: Uint8Array): string {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function fromBase64Url(s: string): Uint8Array {
+  const padded = s.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice((s.length + 2) % 4);
+  const bin = atob(padded);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Legacy JSON wire types (v1/v2) — decoder only.
+// ---------------------------------------------------------------------------
 
 interface WireZ {
   d?: 0 | 1;
@@ -24,7 +153,6 @@ interface WireZ {
   nn?: 0 | 1;
   nr?: 0 | 1;
   nm?: 0 | 1;
-  /** Deprecated v1 field (balance pips), ignored. */
   bp?: 0 | 1;
   c?: { f?: string; t?: string; rf?: string; rt?: string };
 }
@@ -45,52 +173,24 @@ interface WireV1 {
   z: WireZ;
 }
 
-function toBase64Url(bytes: Uint8Array): string {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function fromBase64Url(s: string): Uint8Array {
-  const padded = s.replace(/-/g, '+').replace(/_/g, '/') + '=='.slice((s.length + 2) % 4);
-  const bin = atob(padded);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
 
 export function encodeMapState(map: MapState): string {
-  // Only write fields that DIFFER from the defaults in defaultVariants(). A
-  // typical balanced 4-player URL ends up with z: {} — ~50 chars total.
-  const z: WireZ = {};
-  if (!map.variants.includeDesert) {
-    z.d = 0;
-    z.dr = map.variants.desertReplacement;
-  }
-  if (map.variants.shufflePorts) z.sp = 1;
-  if (!map.variants.noSameNumberAdjacent) z.nn = 0;
-  if (!map.variants.noSameNumberOnResource) z.nr = 0;
-  if (!map.variants.noMultipleRedsOnResource) z.nm = 0;
-  if (map.variants.challenge.flavor !== 'none') {
-    z.c = { f: map.variants.challenge.flavor };
-    if (map.variants.challenge.targetResource !== 'any') {
-      z.c.t = map.variants.challenge.targetResource;
-    }
-  }
-
-  const wire: WireV2 = {
-    v: 2,
-    s: map.seed,
-    p: map.playerCount,
-    z,
-  };
-  const json = JSON.stringify(wire);
-  const bytes = new TextEncoder().encode(json);
-  return toBase64Url(bytes);
+  return toBase64Url(packV3(map));
 }
 
 export function decodeMapState(encoded: string): MapState {
+  // v3 packed payloads always start with the version nibble 0011 → base64url
+  // first char in {M,N,O,P}. v1/v2 JSON payloads always start with '{' →
+  // base64url first char 'e'. Anything else falls back to JSON parsing for
+  // forward safety.
+  const first = encoded[0];
   const bytes = fromBase64Url(encoded);
+  if (first === 'M' || first === 'N' || first === 'O' || first === 'P') {
+    return unpackV3(bytes);
+  }
   const json = new TextDecoder().decode(bytes);
   const wire = JSON.parse(json) as WireV1 | WireV2;
   if (wire.v === 2) return decodeV2(wire);
@@ -114,11 +214,9 @@ function variantsFromZ(z: WireZ): Variants {
 }
 
 function decodeV2(wire: WireV2): MapState {
-  // Re-run the generator with the same seed + variants. The RNG sequence is
-  // deterministic, so this produces the byte-identical board the sender saw.
   const variants = variantsFromZ(wire.z);
   const result = generateMap({
-    seed: wire.s,
+    seed: seedFromString(wire.s),
     playerCount: wire.p as PlayerCount,
     variants,
   });
@@ -126,10 +224,8 @@ function decodeV2(wire: WireV2): MapState {
 }
 
 function decodeV1(wire: WireV1): MapState {
-  // Legacy path — rebuild MapState directly from the embedded hex/port data
-  // so links shared on the old format don't break.
   return {
-    seed: wire.s,
+    seed: seedFromString(wire.s),
     playerCount: wire.p as PlayerCount,
     hexes: wire.h.map(([q, r, resource, number], i) => ({
       id: `h${i}`,

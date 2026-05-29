@@ -23,7 +23,7 @@ export function App() {
     <div className="app">
       <header className="app__header">
         <span className="app__title">CATAN MAP GENERATOR</span>
-        {seed && <span className="app__seed">seed: {seed}</span>}
+        {seed !== undefined && <span className="app__seed">seed: {seed.toString(36)}</span>}
       </header>
       <Board />
       <Controls />

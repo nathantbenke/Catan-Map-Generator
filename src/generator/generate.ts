@@ -9,14 +9,14 @@ import type {
   Variants,
 } from '../game/types';
 import { checkHardConstraints } from './constraints';
-import { mulberry32, makeSeed, pick, seedFromString } from './random';
+import { mulberry32, makeSeed, pick } from './random';
 import { randomizeMap } from './randomize';
 import { computeHealth, hasDroughtCluster, isResourceHealthy, scoreMap } from './score';
 
 export interface GenerateOptions {
   playerCount: PlayerCount;
   variants: Variants;
-  seed?: string;
+  seed?: number;
   maxAttempts?: number;
 }
 
@@ -28,7 +28,7 @@ export interface GenerateResult {
 
 export function generateMap(opts: GenerateOptions): GenerateResult {
   const seed = opts.seed ?? makeSeed();
-  const rng = mulberry32(seedFromString(seed));
+  const rng = mulberry32(seed);
   const maxAttempts = opts.maxAttempts ?? MAX_ATTEMPTS;
   // Balanced mode (no challenge flavor) uses the strict threshold so player
   // picks come out tight. Challenge modes deliberately introduce imbalance,
