@@ -6,7 +6,7 @@ export default defineConfig({
   // GitHub Pages serves project repos at username.github.io/<repo-name>/, so
   // every asset path needs to be prefixed with that subpath. Change to '/' if
   // you ever host at the root of a custom domain.
-  base: '/catan-map-generator/',
+  base: '/Catan-Map-Generator/',
   plugins: [react()],
   server: {
     host: true,

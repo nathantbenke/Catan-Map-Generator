@@ -2,7 +2,7 @@
 
 A constraint-driven map generator for Settlers of Catan. Produces balanced boards by default, or harsh "challenge" boards that bend the math in a specific direction (scarcity of a resource, boom-or-bust concentration, low-yield dead zones). Every map is reproducible from its seed and shareable via URL.
 
-Live: <https://nathantbenke.github.io/catan-map-generator/>
+Live: <https://nathantbenke.github.io/Catan-Map-Generator/>
 
 ## What it does
 
@@ -52,7 +52,7 @@ tests/                # Vitest unit tests for the generator
 
 ## Hosting on GitHub Pages
 
-`vite.config.ts` already sets `base: '/catan-map-generator/'` to match `nathantbenke.github.io/catan-map-generator/`. The included `.github/workflows/deploy.yml` builds on every push to `main` and publishes the result via GitHub Pages.
+`vite.config.ts` already sets `base: '/Catan-Map-Generator/'` to match `nathantbenke.github.io/Catan-Map-Generator/`. The included `.github/workflows/deploy.yml` builds on every push to `main` and publishes the result via GitHub Pages.
 
 To host at a different path, change `base` and the workflow will pick it up automatically.
 
