@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="0%" r="100%">
+      <stop offset="0%" stop-color="#d4441c" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#ac2c07" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="grad-wood" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#3d8a48"/>
+      <stop offset="100%" stop-color="#1f5028"/>
+    </radialGradient>
+    <radialGradient id="grad-brick" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#c2543a"/>
+      <stop offset="100%" stop-color="#7a2510"/>
+    </radialGradient>
+    <radialGradient id="grad-wheat" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#f0d273"/>
+      <stop offset="100%" stop-color="#b88d28"/>
+    </radialGradient>
+    <radialGradient id="grad-sheep" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#b3dca0"/>
+      <stop offset="100%" stop-color="#6da655"/>
+    </radialGradient>
+    <radialGradient id="grad-ore" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#878d9b"/>
+      <stop offset="100%" stop-color="#3f4654"/>
+    </radialGradient>
+    <radialGradient id="grad-desert" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#ecd49a"/>
+      <stop offset="100%" stop-color="#b6914f"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Background: Catan red, gradient highlight at top -->
+  <rect width="1200" height="630" fill="#ac2c07"/>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <!-- Hex cluster (left third). Pointy-top hexes, circumradius 70.
+       Width per hex = 70 * sqrt(3) = ~121.24. Row spacing = 70 * 1.5 = 105. -->
+  <g transform="translate(280, 315)">
+    <!-- Row -1 (top), hexes at q=-1, 0, 1 -->
+    <g transform="translate(-60.62, -105)">
+      <polygon points="0,-70 60.62,-35 60.62,35 0,70 -60.62,35 -60.62,-35"
+               fill="url(#grad-wood)" stroke="#3a2916" stroke-width="3"/>
+    </g>
+    <g transform="translate(60.62, -105)">
+      <polygon points="0,-70 60.62,-35 60.62,35 0,70 -60.62,35 -60.62,-35"
+               fill="url(#grad-brick)" stroke="#3a2916" stroke-width="3"/>
+    </g>
+
+    <!-- Row 0 (middle), hexes at q=-1, 0, 1 -->
+    <g transform="translate(-121.24, 0)">
+      <polygon points="0,-70 60.62,-35 60.62,35 0,70 -60.62,35 -60.62,-35"
+               fill="url(#grad-sheep)" stroke="#3a2916" stroke-width="3"/>
+      <circle cx="0" cy="0" r="25" fill="#f4e4bc" stroke="#5d462a" stroke-width="2.5"/>
+      <text x="0" y="0" text-anchor="middle" dominant-baseline="central"
+            font-family="Georgia, serif" font-weight="900" font-size="26" fill="#3a2916">9</text>
+    </g>
+    <g transform="translate(0, 0)">
+      <polygon points="0,-70 60.62,-35 60.62,35 0,70 -60.62,35 -60.62,-35"
+               fill="url(#grad-wheat)" stroke="#3a2916" stroke-width="3"/>
+      <circle cx="0" cy="0" r="25" fill="#f4e4bc" stroke="#5d462a" stroke-width="2.5"/>
+      <text x="0" y="0" text-anchor="middle" dominant-baseline="central"
+            font-family="Georgia, serif" font-weight="900" font-size="26" fill="#c0341d">8</text>
+    </g>
+    <g transform="translate(121.24, 0)">
+      <polygon points="0,-70 60.62,-35 60.62,35 0,70 -60.62,35 -60.62,-35"
+               fill="url(#grad-ore)" stroke="#3a2916" stroke-width="3"/>
+      <circle cx="0" cy="0" r="25" fill="#f4e4bc" stroke="#5d462a" stroke-width="2.5"/>
+      <text x="0" y="0" text-anchor="middle" dominant-baseline="central"
+            font-family="Georgia, serif" font-weight="900" font-size="26" fill="#3a2916">5</text>
+    </g>
+
+    <!-- Row 1 (bottom) -->
+    <g transform="translate(-60.62, 105)">
+      <polygon points="0,-70 60.62,-35 60.62,35 0,70 -60.62,35 -60.62,-35"
+               fill="url(#grad-desert)" stroke="#3a2916" stroke-width="3"/>
+    </g>
+    <g transform="translate(60.62, 105)">
+      <polygon points="0,-70 60.62,-35 60.62,35 0,70 -60.62,35 -60.62,-35"
+               fill="url(#grad-wood)" stroke="#3a2916" stroke-width="3"/>
+      <circle cx="0" cy="0" r="25" fill="#f4e4bc" stroke="#5d462a" stroke-width="2.5"/>
+      <text x="0" y="0" text-anchor="middle" dominant-baseline="central"
+            font-family="Georgia, serif" font-weight="900" font-size="26" fill="#c0341d">6</text>
+    </g>
+  </g>
+
+  <!-- Title block (right two-thirds). Title sized to fit "GENERATOR" at
+       this letter-spacing within ~480px right of the hex cluster, with
+       safety margin on the right edge. -->
+  <g transform="translate(600, 240)">
+    <text x="0" y="0" font-family="Georgia, 'Times New Roman', serif"
+          font-weight="900" font-size="66" fill="#da954b" letter-spacing="1">CATAN MAP</text>
+    <text x="0" y="74" font-family="Georgia, 'Times New Roman', serif"
+          font-weight="900" font-size="66" fill="#da954b" letter-spacing="1">GENERATOR</text>
+
+    <text x="0" y="144" font-family="-apple-system, Segoe UI, Helvetica, sans-serif"
+          font-size="22" font-weight="600" fill="#f4e4bc" opacity="0.92">Constraint-driven boards</text>
+    <text x="0" y="176" font-family="-apple-system, Segoe UI, Helvetica, sans-serif"
+          font-size="22" font-weight="600" fill="#f4e4bc" opacity="0.92">Snake-draft fairness scoring</text>
+    <text x="0" y="208" font-family="-apple-system, Segoe UI, Helvetica, sans-serif"
+          font-size="22" font-weight="600" fill="#f4e4bc" opacity="0.92">Base game · 5–6 expansion · Shareable URLs</text>
+  </g>
+
+  <!-- Footer URL -->
+  <text x="600" y="585" text-anchor="middle"
+        font-family="-apple-system, Segoe UI, Helvetica, sans-serif"
+        font-size="22" font-weight="600" fill="#f4e4bc" opacity="0.7">
+    nathantbenke.github.io/catan-map-generator
+  </text>
+</svg>
