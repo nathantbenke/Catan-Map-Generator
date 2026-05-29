@@ -1,0 +1,51 @@
+:root {
+  /* Catan 5th edition box palette
+     source: https://colorswall.com/palette/60530 */
+  --catan-red-bright: #d4441c;
+  --catan-red-deep: #ac2c07;
+  --catan-gold: #da954b;
+  --catan-brown-dark: #5d462a;
+  --catan-brown-mid: #7e4e1a;
+  --catan-olive: #7b7c47;
+  --catan-cream: #f4e4bc;
+
+  /* Hex tile fills */
+  --tile-wood: #2f6b3a;
+  --tile-brick: #b04a1f;
+  --tile-wheat: #e8c659;
+  --tile-sheep: #95c87a;
+  --tile-ore: #6e7480;
+  --tile-desert: #d9c187;
+  --tile-stroke: #3a2916;
+
+  /* Numbers */
+  --num-red: #c0341d;
+  --num-ink: #3a2916;
+
+  /* Spacing & radii */
+  --radius-card: 14px;
+  --radius-button: 12px;
+  --shadow-card: 0 6px 16px rgba(0, 0, 0, 0.25);
+  --shadow-button: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--catan-red-deep);
+  color: var(--catan-cream);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  overflow: hidden;
+}
+
+button {
+  font-family: inherit;
+}

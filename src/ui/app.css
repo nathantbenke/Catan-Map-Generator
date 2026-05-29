@@ -1,0 +1,493 @@
+.app {
+  position: relative;
+  height: 100dvh;
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(212, 68, 28, 0.35), transparent 60%),
+    var(--catan-red-deep);
+}
+
+/* Header floats ABOVE the board (no flex slot of its own) so the map
+   extends edge-to-edge under it. The middle of the header is empty —
+   only the title pill and seed pill are visible and clickable. */
+.app__header {
+  position: absolute;
+  top: env(safe-area-inset-top);
+  left: 0;
+  right: 0;
+  padding: 10px 16px 6px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.app__title,
+.app__seed {
+  pointer-events: auto;
+  /* Solid (high-opacity) background — backdrop-filter:blur was VERY expensive
+     here because the board is now panning underneath the header, forcing the
+     blur kernel to recompute every frame. That alone accounted for hundreds
+     of ms of main-thread time during drag. */
+  background: rgba(30, 12, 6, 0.88);
+  border: 1px solid rgba(218, 149, 75, 0.35);
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.app__title {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--catan-gold);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  font-size: 1rem;
+  padding: 6px 14px;
+}
+
+.app__seed {
+  font-size: 0.75rem;
+  color: rgba(244, 228, 188, 0.85);
+  font-variant-numeric: tabular-nums;
+  padding: 6px 12px;
+  align-self: center;
+}
+
+.app__board {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: none;
+  /* Scope paint/layout work to this subtree — tells the browser it doesn't
+     need to consider this region when invalidating areas outside it. At 4K
+     this materially reduces the work done per pan frame. */
+  contain: layout style paint;
+}
+
+.board-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  user-select: none;
+  transform-origin: center center;
+  /* will-change is toggled imperatively by Board.tsx — ON during an active
+     drag/pinch (for fast GPU composite), OFF as soon as the gesture ends.
+     A persistent will-change here would make iOS Safari keep a stale
+     rasterized bitmap of the SVG even when static, which is exactly the
+     blur problem we hit before. */
+}
+
+.board__view-controls {
+  position: absolute;
+  /* Sits above the collapsed peek bar (~56px) plus the iOS home indicator. */
+  bottom: calc(56px + env(safe-area-inset-bottom) + 12px);
+  right: 12px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  z-index: 2;
+}
+
+.board__btn {
+  background: var(--catan-cream);
+  color: var(--catan-brown-dark);
+  border: 2px solid var(--catan-gold);
+  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  font-size: 1.3rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: var(--shadow-button);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-family: inherit;
+}
+.board__btn:active {
+  transform: translateY(1px);
+}
+.board__btn--label {
+  width: auto;
+  min-width: 44px;
+  padding: 0 10px;
+  border-radius: 22px;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.hex {
+  stroke: var(--tile-stroke);
+  stroke-width: 0.04;
+}
+
+.hex--wood   { fill: var(--tile-wood); }
+.hex--brick  { fill: var(--tile-brick); }
+.hex--wheat  { fill: var(--tile-wheat); }
+.hex--sheep  { fill: var(--tile-sheep); }
+.hex--ore    { fill: var(--tile-ore); }
+.hex--desert { fill: var(--tile-desert); }
+
+.number-token {
+  fill: var(--catan-cream);
+  stroke: var(--catan-brown-dark);
+  stroke-width: 0.03;
+}
+.number-token--red { fill: #f7d9c0; }
+
+.number-text {
+  fill: var(--num-ink);
+  font-weight: 700;
+  text-anchor: middle;
+  font-family: Georgia, 'Times New Roman', serif;
+}
+.number-text--red { fill: var(--num-red); }
+
+.pip-dot { fill: var(--num-ink); }
+.pip-dot--red { fill: var(--num-red); }
+
+.port-rope {
+  stroke: #3a2510;
+  stroke-width: 0.025;
+  stroke-dasharray: 0.04 0.04;
+  opacity: 0.7;
+}
+
+.spot-badge {
+  fill: var(--catan-cream);
+  stroke: var(--catan-brown-dark);
+  stroke-width: 0.02;
+}
+.spot-text {
+  fill: var(--catan-brown-dark);
+  font-size: 0.22px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+.spot-rank {
+  stroke: var(--catan-gold);
+  stroke-width: 0.06;
+  fill: none;
+}
+.spot-rank-text {
+  fill: var(--catan-cream);
+  font-size: 0.22px;
+  font-weight: 700;
+  text-anchor: middle;
+  paint-order: stroke;
+  stroke: var(--catan-brown-dark);
+  stroke-width: 0.02;
+}
+.synergy-icon {
+  font-size: 0.22px;
+  text-anchor: middle;
+}
+
+/* Controls
+   On phones the panel is a bottom drawer anchored to the viewport bottom.
+   The translateY transform is driven imperatively by Controls.tsx (both for
+   open/closed snapping and the live drag-follow), NOT by CSS classes — so
+   you won't see open/closed transforms here. The @media (min-width: 900px)
+   block below converts the same element into a static side panel. */
+.controls {
+  background: var(--catan-cream);
+  color: var(--catan-brown-dark);
+  border-top-left-radius: 22px;
+  border-top-right-radius: 22px;
+  border: 3px solid var(--catan-gold);
+  border-bottom: none;
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 75dvh;
+  /* Initial visual state before the first useLayoutEffect runs is closed —
+     prevents a flash of fully-open drawer on cold load. */
+  transform: translateY(calc(75dvh - 56px - env(safe-area-inset-bottom)));
+}
+
+.controls__handle {
+  flex: 0 0 auto;
+  appearance: none;
+  background: transparent;
+  border: none;
+  width: 100%;
+  padding: 10px 16px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: grab;
+  color: var(--catan-brown-dark);
+  font-family: inherit;
+  touch-action: none;
+}
+.controls__handle:active { cursor: grabbing; }
+
+.controls__handle-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--catan-brown-mid);
+}
+
+.controls__body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 4px 16px calc(16px + env(safe-area-inset-bottom));
+  -webkit-overflow-scrolling: touch;
+}
+/* While the drawer is collapsed, the body is mostly below the screen but a
+   sliver still bleeds in above the safe-area inset. Disable pointer events
+   on it so accidental swipes on that sliver don't scroll hidden content —
+   the user must use the handle to drag/tap the drawer open. */
+.controls.controls--closed .controls__body {
+  pointer-events: none;
+}
+
+.controls__drag {
+  width: 44px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--catan-brown-mid);
+  opacity: 0.5;
+  display: block;
+}
+
+.controls__row--primary {
+  margin-top: 0;
+}
+
+.controls__row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+
+.controls__label {
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--catan-brown-dark);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.controls__group {
+  margin: 10px 0 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed rgba(125, 75, 30, 0.25);
+}
+.controls__group:last-of-type {
+  border-bottom: none;
+}
+
+.help {
+  margin: 4px 4px 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--catan-brown-mid);
+  font-style: italic;
+}
+.help--note {
+  color: var(--catan-brown-dark);
+  font-weight: 600;
+  font-style: normal;
+  margin-top: 4px;
+}
+
+.seg {
+  display: inline-flex;
+  background: rgba(125, 75, 30, 0.1);
+  border-radius: var(--radius-button);
+  padding: 3px;
+  border: 1px solid var(--catan-brown-mid);
+}
+.seg__btn {
+  border: none;
+  background: transparent;
+  color: var(--catan-brown-dark);
+  padding: 8px 14px;
+  font-weight: 700;
+  font-size: 1rem;
+  border-radius: 9px;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 40px;
+}
+.seg__btn--active {
+  background: var(--catan-red-bright);
+  color: var(--catan-cream);
+  box-shadow: var(--shadow-button);
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+.toggle input { transform: scale(1.2); accent-color: var(--catan-red-bright); }
+.toggle--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.toggle--disabled input { cursor: not-allowed; }
+
+.select {
+  background: white;
+  color: var(--catan-brown-dark);
+  border: 2px solid var(--catan-brown-mid);
+  border-radius: var(--radius-button);
+  padding: 8px 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  min-height: 40px;
+  appearance: none;
+  padding-right: 30px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--catan-brown-dark) 50%),
+    linear-gradient(135deg, var(--catan-brown-dark) 50%, transparent 50%);
+  background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.btn {
+  border: none;
+  border-radius: var(--radius-button);
+  padding: 12px 16px;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: var(--shadow-button);
+  min-height: 48px;
+  letter-spacing: 0.04em;
+}
+.btn--primary {
+  background: var(--catan-red-bright);
+  color: var(--catan-cream);
+  border: 2px solid var(--catan-gold);
+  flex: 1;
+}
+.btn--secondary {
+  background: var(--catan-gold);
+  color: var(--catan-brown-dark);
+  border: 2px solid var(--catan-brown-mid);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.health {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  margin-top: 8px;
+}
+.health__cell {
+  background: white;
+  border: 1px solid var(--catan-brown-mid);
+  border-radius: 10px;
+  padding: 6px;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.health__dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+.health__dot--healthy { background: #4a8a45; }
+.health__dot--warning { background: #d4a228; }
+.health__dot--unhealthy { background: #c0341d; }
+
+.fairness {
+  background: white;
+  border: 1px solid var(--catan-brown-mid);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  font-size: 0.85rem;
+}
+.fairness__row {
+  display: flex;
+  justify-content: space-between;
+  font-variant-numeric: tabular-nums;
+}
+.fairness__bars {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+.fairness__bar {
+  flex: 1;
+  height: 24px;
+  background: linear-gradient(to top, var(--catan-gold), var(--catan-red-bright));
+  border-radius: 4px;
+  position: relative;
+  border: 1px solid var(--catan-brown-mid);
+}
+.fairness__bar-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--catan-cream);
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+.notice {
+  font-size: 0.8rem;
+  color: var(--catan-brown-mid);
+  margin-top: 4px;
+}
+.notice--warn { color: var(--catan-red-bright); font-weight: 700; }
+
+@media (min-width: 900px) {
+  /* Desktop reserves a fixed-width side panel on the right. The board fills
+     everything else and the header overlay only spans the board area. */
+  .app__board {
+    right: 376px;
+  }
+  .app__header {
+    right: 376px;
+  }
+  .controls {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    bottom: 16px;
+    left: auto;
+    width: 360px;
+    max-height: none;
+    transform: none;
+    transition: none;
+    border-radius: 22px;
+  }
+  .controls__handle {
+    display: none;
+  }
+  .controls__body {
+    padding: 10px 16px 16px;
+  }
+  .board__view-controls {
+    bottom: 12px;
+  }
+}
