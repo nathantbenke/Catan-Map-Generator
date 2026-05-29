@@ -194,9 +194,15 @@ The board view controls (rotate ±30°, reset rotation, reset pan/zoom) sit `pos
 
 ## 9. URL sharing
 
-`url/encode.ts` serializes the `MapState` (player count, hexes, ports, variants, seed) as JSON, then base64-url-encodes it into the URL hash. Loading the page with `#m=…` decodes back into the same state.
+`url/encode.ts` serializes only the **seed + player count + non-default variants** into the URL hash — NOT the full hex/port data. The recipient re-runs `generateMap` with the same parameters, and because the RNG (`mulberry32`) is deterministic, gets the byte-identical board.
 
-The wire format has short field names (`h`, `o`, `z`, `nn`, `nr`, …) so a typical encoded URL stays around 500 bytes for a base game, ~700 for the 5–6 expansion. There's a deprecated `bp` field that's still accepted on decode so older shared URLs don't crash; it's just ignored.
+That keeps the URL around 50 chars for a typical balanced board (vs. ~1400 chars if we shipped the full state). Only fields that differ from `defaultVariants()` are written, so a default 4-player URL looks like:
+
+```
+#m=eyJ2IjoyLCJzIjoidDk5YXU4IiwicCI6NCwieiI6e319
+```
+
+decode reads the wire version field: `v: 2` triggers the regenerate path, `v: 1` triggers a legacy "rebuild from embedded data" path so URLs shared before the format change still load.
 
 ---
 
